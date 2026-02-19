@@ -32,9 +32,59 @@ const mockDiagram = {
   appState: { viewBackgroundColor: "#ffffff", gridSize: null },
 };
 
+const mockDiagramWithFont = {
+  type: "excalidraw",
+  version: 2,
+  source: "https://excalidraw.com",
+  elements: [
+    {
+      id: "text1",
+      type: "text",
+      x: 100,
+      y: 100,
+      width: 120,
+      height: 45,
+      text: "halooo",
+      fontSize: 36,
+      fontFamily: 8,
+      textAlign: "left",
+      verticalAlign: "top",
+      strokeColor: "#1e1e1e",
+      backgroundColor: "transparent",
+      fillStyle: "solid",
+      strokeWidth: 2,
+      strokeStyle: "solid",
+      roughness: 1,
+      opacity: 100,
+      groupIds: [],
+      roundness: null,
+      seed: 12345,
+      version: 1,
+      versionNonce: 1,
+      isDeleted: false,
+      boundElements: [],
+      lineHeight: 1.25,
+    },
+  ],
+  appState: { viewBackgroundColor: "#ffffff" },
+  files: {},
+};
+
 describe("excalidraw-to-svg function", () => {
   it("should render an svg", async () => {
     const svg = await excalidrawToSvg(mockDiagram);
     expect(svg.outerHTML).toMatch(/<svg/);
+  });
+
+  it("should subset custom fonts to keep SVG small", async () => {
+    const svg = await excalidrawToSvg(mockDiagramWithFont);
+    const svgHTML = svg.outerHTML;
+
+    // Should contain a @font-face rule for Comic Shanns
+    expect(svgHTML).toMatch(/@font-face.*Comic Shanns/);
+
+    // SVG should be under 100KB (without subsetting it would be ~2.2MB)
+    const sizeKB = Buffer.byteLength(svgHTML, "utf8") / 1024;
+    expect(sizeKB).toBeLessThan(100);
   });
 });

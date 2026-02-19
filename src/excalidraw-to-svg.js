@@ -1,6 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const { JSDOM } = require("jsdom"); // used to create mock web interface (which excalidraw-utils depends on)
+const subsetFont = require("subset-font");
 
 /**
  * Mapping of Excalidraw font family names to their .ttf file names
@@ -25,61 +26,90 @@ const getFontAssetsDir = () => {
 };
 
 /**
- * Reads a font file and returns a base64-encoded data URI.
+ * Reads a font file and returns its Buffer.
  * @param {string} fontFileName - Name of the font file (e.g., "Excalifont.ttf")
- * @returns {string|null} Base64 data URI or null if the file doesn't exist
+ * @returns {Buffer|null} Font file buffer or null if the file doesn't exist
  */
-const getFontAsBase64 = (fontFileName) => {
+const readFontFile = (fontFileName) => {
   try {
     const fontPath = path.join(getFontAssetsDir(), fontFileName);
-    const fontBuffer = fs.readFileSync(fontPath);
-    return `data:font/ttf;base64,${fontBuffer.toString("base64")}`;
+    return fs.readFileSync(fontPath);
   } catch {
     return null;
   }
 };
 
 /**
- * Scans an SVG element for font-family references and generates @font-face CSS
- * with embedded base64 font data for all Excalidraw fonts used in the SVG.
+ * Collects all characters used per font family from the SVG's text elements.
  * @param {SVGElement} svg - The SVG element to scan
- * @returns {string} CSS string containing @font-face declarations
+ * @returns {Map<string, Set<string>>} Map of font family name to set of characters
  */
-const generateFontFaceCSS = (svg) => {
+const collectUsedCharsPerFont = (svg) => {
+  const fontCharsMap = new Map();
+
+  const addChars = (fontFamily, text) => {
+    if (!text) return;
+    const families = fontFamily.split(",").map((f) => f.trim());
+    for (const family of families) {
+      if (FONT_FILE_MAP[family]) {
+        if (!fontCharsMap.has(family)) fontCharsMap.set(family, new Set());
+        const charSet = fontCharsMap.get(family);
+        for (const ch of text) charSet.add(ch);
+      }
+    }
+  };
+
+  // Scan <text> elements for font-family attribute + text content
+  const textElements = svg.querySelectorAll("text");
+  for (const textEl of textElements) {
+    const fontFamily = textEl.getAttribute("font-family") || "";
+    const text = textEl.textContent || "";
+    addChars(fontFamily, text);
+  }
+
+  // Also scan elements with style-based font-family
   const svgHTML = svg.outerHTML;
-  const usedFonts = new Set();
-
-  // Find all font-family references in the SVG
-  const fontFamilyMatches = svgHTML.matchAll(/font-family="([^"]+)"/g);
-  for (const match of fontFamilyMatches) {
-    // font-family can contain multiple fonts separated by commas
-    const families = match[1].split(",").map((f) => f.trim());
-    for (const family of families) {
-      if (FONT_FILE_MAP[family]) {
-        usedFonts.add(family);
-      }
-    }
-  }
-
-  // Also check CSS style attributes
-  const styleFontMatches = svgHTML.matchAll(/font-family:\s*([^;"]+)/g);
+  const styleFontMatches = svgHTML.matchAll(
+    /font-family:\s*([^;"]+)[^>]*>([^<]*)</g,
+  );
   for (const match of styleFontMatches) {
-    const families = match[1].split(",").map((f) => f.trim());
-    for (const family of families) {
-      if (FONT_FILE_MAP[family]) {
-        usedFonts.add(family);
-      }
-    }
+    addChars(match[1], match[2]);
   }
 
-  if (usedFonts.size === 0) return "";
+  return fontCharsMap;
+};
 
-  // Generate @font-face rules for each used font
+/**
+ * Scans an SVG element for font-family references and generates @font-face CSS
+ * with embedded base64 font data. Fonts are subsetted to include only the
+ * characters actually used in the SVG, drastically reducing file size.
+ * @param {SVGElement} svg - The SVG element to scan
+ * @returns {Promise<string>} CSS string containing @font-face declarations
+ */
+const generateFontFaceCSS = async (svg) => {
+  const fontCharsMap = collectUsedCharsPerFont(svg);
+
+  if (fontCharsMap.size === 0) return "";
+
+  // Generate @font-face rules for each used font (subsetted)
   const fontFaceRules = [];
-  for (const fontName of usedFonts) {
+  for (const [fontName, chars] of fontCharsMap) {
     const fileName = FONT_FILE_MAP[fontName];
-    const dataUri = getFontAsBase64(fileName);
-    if (dataUri) {
+    const fontBuffer = readFontFile(fileName);
+    if (!fontBuffer) continue;
+
+    try {
+      const charString = [...chars].join("");
+      const subsetBuffer = await subsetFont(fontBuffer, charString, {
+        targetFormat: "sfnt",
+      });
+      const dataUri = `data:font/ttf;base64,${Buffer.from(subsetBuffer).toString("base64")}`;
+      fontFaceRules.push(
+        `@font-face { font-family: "${fontName}"; src: url("${dataUri}") format("truetype"); }`,
+      );
+    } catch {
+      // Fallback: embed full font if subsetting fails
+      const dataUri = `data:font/ttf;base64,${fontBuffer.toString("base64")}`;
       fontFaceRules.push(
         `@font-face { font-family: "${fontName}"; src: url("${dataUri}") format("truetype"); }`,
       );
@@ -91,10 +121,11 @@ const generateFontFaceCSS = (svg) => {
 
 /**
  * Injects @font-face CSS rules into the SVG's <style> element.
+ * Fonts are subsetted to include only characters used in the SVG.
  * @param {SVGElement} svg - The SVG element to modify
  */
-const embedFontsInSvg = (svg) => {
-  const fontCSS = generateFontFaceCSS(svg);
+const embedFontsInSvg = async (svg) => {
+  const fontCSS = await generateFontFaceCSS(svg);
   if (!fontCSS) return;
 
   // Find the existing <style> element or create one
@@ -282,7 +313,8 @@ const excalidrawToSvg = async (diagram) => {
     });
 
     // Embed Excalidraw fonts directly into the SVG as base64 @font-face rules
-    embedFontsInSvg(svg);
+    // Fonts are subsetted to only include glyphs for characters used in the SVG
+    await embedFontsInSvg(svg);
 
     return svg;
   } finally {

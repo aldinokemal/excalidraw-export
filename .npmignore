@@ -1,0 +1,16 @@
+# Output and example files
+output/
+diagrams/
+
+# Test files
+*.test.js
+test-*.js
+jest.config.js
+
+# Dev config
+.prettierrc.json
+.git/
+.gitignore
+
+# Lock file
+package-lock.json

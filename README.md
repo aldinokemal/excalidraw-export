@@ -15,7 +15,7 @@ Useful if you are storing Excalidraw diagrams in repos and want a pipeline to ex
 ## Installation
 
 ```bash
-npm install excalidraw-to-svg
+npm install @aldinokemal2104/excalidraw-to-svg
 ```
 
 ## Usage
@@ -26,13 +26,13 @@ You can run this package as a CLI tool via `npx` (or as a locally installed depe
 
 ```bash
 # Output to the same directory as the input (replaces .excalidraw with .svg)
-npx excalidraw-to-svg ./diagrams/example.excalidraw
+npx @aldinokemal2104/excalidraw-to-svg ./diagrams/example.excalidraw
 
 # Output to a specific directory
-npx excalidraw-to-svg ./diagrams/example.excalidraw ./output
+npx @aldinokemal2104/excalidraw-to-svg ./diagrams/example.excalidraw ./output
 
 # Output to a specific file
-npx excalidraw-to-svg ./diagrams/example.excalidraw ./output/my-diagram.svg
+npx @aldinokemal2104/excalidraw-to-svg ./diagrams/example.excalidraw ./output/my-diagram.svg
 ```
 
 ### API
@@ -40,7 +40,7 @@ npx excalidraw-to-svg ./diagrams/example.excalidraw ./output/my-diagram.svg
 Install the package as a dependency and call the exported function with an Excalidraw JSON object or string. The function returns a **DOM `SVGElement`** — use `.outerHTML` to get the string representation.
 
 ```javascript
-const excalidrawToSvg = require("excalidraw-to-svg");
+const excalidrawToSvg = require("@aldinokemal2104/excalidraw-to-svg");
 
 const diagram = {
   type: "excalidraw",
@@ -85,7 +85,7 @@ You can also pass a raw JSON string:
 
 ```javascript
 const fs = require("fs");
-const excalidrawToSvg = require("excalidraw-to-svg");
+const excalidrawToSvg = require("@aldinokemal2104/excalidraw-to-svg");
 
 const json = fs.readFileSync("./diagrams/example.excalidraw", "utf8");
 const svgElement = await excalidrawToSvg(json);
