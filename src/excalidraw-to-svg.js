@@ -15,6 +15,7 @@ const FONT_FILE_MAP = {
   "Liberation Sans": "Liberation Sans.ttf",
   "Lilita One": "Lilita One.ttf",
   Nunito: "Nunito ExtraLight Medium.ttf",
+  Xiaolai: "Xiaolai.ttf",
 };
 
 /**
@@ -40,7 +41,34 @@ const readFontFile = (fontFileName) => {
 };
 
 /**
+ * Checks if a character is an emoji. Emoji characters are excluded from
+ * embedded font subsets so that the system's color emoji font (e.g. Apple
+ * Color Emoji) renders them instead of monochrome fallback glyphs.
+ * @param {string} char - A single character (may be a surrogate pair)
+ * @returns {boolean} True if the character is an emoji
+ */
+const isEmoji = (char) => {
+  const cp = char.codePointAt(0);
+  if (cp === undefined) return false;
+  return (
+    (cp >= 0x1f1e0 && cp <= 0x1f1ff) || // Regional Indicator Symbols (flags)
+    (cp >= 0x1f300 && cp <= 0x1f5ff) || // Misc Symbols and Pictographs
+    (cp >= 0x1f600 && cp <= 0x1f64f) || // Emoticons
+    (cp >= 0x1f680 && cp <= 0x1f6ff) || // Transport and Map Symbols
+    (cp >= 0x1f900 && cp <= 0x1f9ff) || // Supplemental Symbols and Pictographs
+    (cp >= 0x1fa00 && cp <= 0x1fa6f) || // Chess Symbols
+    (cp >= 0x1fa70 && cp <= 0x1faff) || // Symbols and Pictographs Extended-A
+    (cp >= 0x2600 && cp <= 0x26ff) || // Misc Symbols
+    (cp >= 0x2700 && cp <= 0x27bf) || // Dingbats
+    (cp >= 0xfe00 && cp <= 0xfe0f) || // Variation Selectors
+    (cp >= 0xe0020 && cp <= 0xe007f) || // Tags (subdivision flags)
+    cp === 0x200d // Zero Width Joiner (used in compound emoji)
+  );
+};
+
+/**
  * Collects all characters used per font family from the SVG's text elements.
+ * Emoji characters are excluded so they render via the system's color emoji font.
  * @param {SVGElement} svg - The SVG element to scan
  * @returns {Map<string, Set<string>>} Map of font family name to set of characters
  */
@@ -54,7 +82,9 @@ const collectUsedCharsPerFont = (svg) => {
       if (FONT_FILE_MAP[family]) {
         if (!fontCharsMap.has(family)) fontCharsMap.set(family, new Set());
         const charSet = fontCharsMap.get(family);
-        for (const ch of text) charSet.add(ch);
+        for (const ch of text) {
+          if (!isEmoji(ch)) charSet.add(ch);
+        }
       }
     }
   };

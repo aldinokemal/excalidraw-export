@@ -11,6 +11,12 @@ jest.config.js
 .prettierrc.json
 .git/
 .gitignore
+.npmrc
+AGENTS.md
+.gemini/
+.vscode/
+.github/
+.DS_Store
 
 # Lock file
 package-lock.json

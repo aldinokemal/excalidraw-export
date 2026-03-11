@@ -1,6 +1,6 @@
 {
   "name": "@aldinokemal2104/excalidraw-to-svg",
-  "version": "1.0.2",
+  "version": "1.0.5",
   "description": "Node Library to transform excalidraw diagrams into svgs",
   "main": "src/excalidraw-to-svg.js",
   "bin": {
@@ -8,7 +8,9 @@
   },
   "scripts": {
     "test": "NODE_OPTIONS='--experimental-vm-modules' jest src/*.test.js",
-    "test:watch": "NODE_OPTIONS='--experimental-vm-modules' jest src/*.test.js --watch"
+    "test:watch": "NODE_OPTIONS='--experimental-vm-modules' jest src/*.test.js --watch",
+    "prepublishOnly": "npm test",
+    "npm:publish": "NPM_TOKEN=${NPM_TOKEN:?'NPM_TOKEN is required'} && echo \"//registry.npmjs.org/:_authToken=${NPM_TOKEN}\" > .npmrc && npm publish --access public && rm -f .npmrc"
   },
   "keywords": [
     "excalidraw",

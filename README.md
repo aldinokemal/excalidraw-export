@@ -110,6 +110,18 @@ console.log(svgElement.outerHTML);
 npm test
 ```
 
+### Publishing to npm
+
+1. Go to [npmjs.com → Access Tokens](https://www.npmjs.com/settings/aldinokemal2104/tokens) and generate a new **Automation** or **Publish** token.
+2. Bump the version in `package.json` (or use `npm version patch` / `npm version minor`).
+3. Run the publish command with your token:
+
+```bash
+NPM_TOKEN=your_npm_token_here npm run npm:publish
+```
+
+This will automatically run tests, authenticate with npm, publish the package with public access, and clean up the auth file afterward.
+
 ### Project Structure
 
 ```
